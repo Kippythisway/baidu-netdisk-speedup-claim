@@ -144,9 +144,14 @@ Windows 的 DPAPI 部分要换：macOS 走 Keychain，Linux 走 libsecret。核�
 ## 目录
 
 ```
-bd_speedup.py                       一键领取脚本
-docs/desktop-webview-api-reversing.md   完整方法论（五阶段，含判断依据和陷阱）
+bd_speedup.py                            一键领取脚本
+AGENT-PROMPT.md                          给 agent 的提示词，复制粘贴即可一键执行
+docs/desktop-webview-api-reversing.md    完整方法论（五阶段，含判断依据和陷阱）
 ```
+
+`AGENT-PROMPT.md` 是同一个方法论的**可执行版本**——把里面 `=====` 之间的内容整块丢给任意 agent（Claude / GPT / 本地模型 / CLI agent），它会在当前用户权限内跑完五个阶段，输出一份六节报告。你只需要改三个占位符（`TARGET_APP` / `PROFILE_HINT` / `WORK_DIR`）。
+
+`docs/` 那篇是给人读的，`AGENT-PROMPT.md` 是给 agent 执行的，内容一致，结构不同。
 
 方法论那篇是脱敏的通用版本，讲的是「怎么分析任意 CEF/Electron 客户端」，不绑定具体目标。
 
