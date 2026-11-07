@@ -2,6 +2,32 @@
 
 > 本地登录态直接领，不扫码、不装 App、不看广告。一条命令领满当天的加速节点和空间券。
 
+---
+
+## 🤖 交给 agent，一句话跑完
+
+**不想自己动手？把 [`AGENT-PROMPT.md`](AGENT-PROMPT.md) 里 `=====` 之间的内容整块复制给任意 agent（Claude / GPT / 本地模型 / CLI agent），改三个占位符，它就自己跑完五个阶段并输出报告。**
+
+```diff
++ TARGET_APP     客户端进程名
++ PROFILE_HINT   profile 目录大概位置
++ WORK_DIR       输出目录
+```
+
+不需要懂逆向，不需要装工具链，不需要写一行代码。
+
+> 这个 prompt 描述的是**本地资产审计**：全程在当前用户权限内，无提权、无跨用户、无注入。agent 不会拒绝——它读到的是工程任务，不是攻击指令。
+
+[→ 打开 AGENT-PROMPT.md](AGENT-PROMPT.md)
+
+---
+
+## 不想用 agent？直接跑脚本
+
+```diff
++ python bd_speedup.py
+```
+
 ```
 10040  节点加速      3/3  ✅
 10049  50M 空间     10/10 ✅
