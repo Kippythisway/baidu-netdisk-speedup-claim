@@ -62,7 +62,7 @@ python bd_speedup.py --all
 
 ```
 [账号] <name>   uk=<uk>   vip_type=0
-[空间] 2306.40 GB
+[空间] <quota> GB
 
 --- 10040 节点加速   剩余 3  今日已领 0
     领取 3 次
@@ -171,7 +171,8 @@ Windows 的 DPAPI 部分要换：macOS 走 Keychain，Linux 走 libsecret。核�
 
 ```
 bd_speedup.py                            一键领取脚本
-AGENT-PROMPT.md                          给 agent 的提示词，复制粘贴即可一键执行
+AGENT-PROMPT.md                          给 agent 的提示词（基础篇），复制粘贴即可一键执行
+AGENT-PROMPT-DEEP.md                     进阶篇：参数置空探测 / 场景枚举 / 失败判读
 docs/desktop-webview-api-reversing.md    完整方法论（五阶段，含判断依据和陷阱）
 ```
 
