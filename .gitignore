@@ -1,0 +1,43 @@
+# ---- 凭据 / 会话 ----
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+Cookies
+Cookies-journal
+Local State
+LocalState.json
+cookies_decrypted.json
+*.session
+*.token
+*.key
+.env
+.env.*
+
+# ---- 逆向产物 ----
+*.idb
+*.log
+*.trace
+captures/
+dump/
+dumps/
+strings.txt
+
+# ---- 二进制 / 大文件 ----
+*.dll
+*.exe
+*.so
+*.dylib
+*.bin
+*.pdb
+
+# ---- OS ----
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# ---- 编辑器 ----
+.vscode/
+.idea/
+*.swp
+*~
