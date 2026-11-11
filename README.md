@@ -103,8 +103,45 @@ python bd_speedup.py --all
 --- 10049 50M 空间   剩余 10 今日已领 0
     领取 10 次
 ...
-[空间] 2308.36 GB   (+1965 MB)
+[空间] <quota> GB   (+<delta>)
 ```
+
+---
+
+## 用券：全后台，不点鼠标
+
+`bd_speedup.py` 负责**刷券**，`bd_use.py` 负责**用券**。
+
+领到券之后，怎么让它真的作用到下载上？客户端那个「用券提速」按钮，点下去走的是：
+
+```
+点按钮        → ipcRenderer.send("useTicket")  → 主进程转发 → 渲染层弹窗
+选券+立即使用 → downloader.beginTicketSpeedUp()
+             → browser_engine_consume_ticket_speedup([0], 10, "", cb)   ← native
+```
+
+最后一行是 `browserengine.dll` 导出的 C 函数。**用券没有公开 HTTP 接口**，它绑在客户端自己的 native 层里，服务端发下来的加速授权也只有 kernel 认。
+
+`bd_use.py` 的做法：进入你自己的客户端进程，直接调这个导出。效果等同于点了「立即使用」。
+
+```diff
++ python bd_use.py
+```
+
+实测：
+
+| | 用券前 | 用券后 |
+|---|---|---|
+| 下载速度 | 1.72 MB/s | **25.26 MB/s** |
+| 「用券提速」按钮 | 显示 | 消失（加速中） |
+
+对比另一版靠截图找按钮、模拟鼠标点击的实现：那版 58.9 MB，必须在下载页、窗口不能被遮挡；这版 11 KB，不截图、不点击、不抢焦点，客户端最小化也能用。
+
+**为什么不打包成 exe**
+
+试过了。PyInstaller 产物必被 Windows Defender 判毒（`contains a virus`），因为它调了 `CreateRemoteThread` + `WriteProcessMemory`，特征和注入木马一致。纯 `.py` 不触发扫描（CPython 不接 AMSI），所以分发请直接发脚本，别打包。
+
+脚本里写死了目标白名单：目标进程的可执行文件必须严格位于 `%APPDATA%\baidu\BaiduNetdisk\module\BrowserEngine\BaiduNetdiskUnite.exe`，只调用 `browserengine.dll` 的三个导出，不读账号密码、不发网络请求。换成任何别的进程一律拒绝执行。
 
 ---
 
@@ -205,7 +242,8 @@ Windows 的 DPAPI 部分要换：macOS 走 Keychain，Linux 走 libsecret。核�
 
 ```
 bd_gui.py                                打包用源码（带交互菜单，exe 由它编译）
-bd_speedup.py                            命令行版（无菜单，参数驱动）
+bd_speedup.py                            命令行版刷券（无菜单，参数驱动）
+bd_use.py                                用券版：后台静默调 native，不截图不点击
 AGENT-PROMPT.md                          给 agent 的提示词（基础篇），复制粘贴即可一键执行
 AGENT-PROMPT-DEEP.md                     进阶篇：参数置空探测 / 场景枚举 / 失败判读
 docs/desktop-webview-api-reversing.md    完整方法论（五阶段，含判断依据和陷阱）
