@@ -6,19 +6,20 @@
 
 ## ⬇️ 下载 exe（免装 Python）
 
-**[百度网盘加速券.exe](https://github.com/Kippythisway/baidu-netdisk-speedup-claim/releases/latest)** · 11.6 MB · 单文件
+**[百度网盘加速券.exe](https://github.com/Kippythisway/baidu-netdisk-speedup-claim/releases/latest)** · 11.9 MB · 单文件
 
 双击出菜单：
 
 ```
 ========================================================
-  百度网盘 激励领取
+  百度网盘 激励领取 + 用券
 ========================================================
   1) 全部领取（任务 + 场景 + 抽奖）
   2) 只看今天还剩多少
   3) 只刷任务表
   4) 只刷广告场景
   5) 只抽奖
+  6) 用券提速（后台，不点鼠标）
   0) 退出
 ========================================================
 ```
@@ -28,6 +29,7 @@
 ```powershell
 百度网盘加速券.exe --status     # 只看剩余
 百度网盘加速券.exe --lottery    # 只抽奖
+百度网盘加速券.exe --ticket     # 只用一个加速券
 百度网盘加速券.exe all          # 全跑
 ```
 
@@ -110,8 +112,6 @@ python bd_speedup.py --all
 
 ## 用券：全后台，不点鼠标
 
-`bd_speedup.py` 负责**刷券**，`bd_use.py` 负责**用券**。
-
 领到券之后，怎么让它真的作用到下载上？客户端那个「用券提速」按钮，点下去走的是：
 
 ```
@@ -122,7 +122,16 @@ python bd_speedup.py --all
 
 最后一行是 `browserengine.dll` 导出的 C 函数。**用券没有公开 HTTP 接口**，它绑在客户端自己的 native 层里，服务端发下来的加速授权也只有 kernel 认。
 
-`bd_use.py` 的做法：进入你自己的客户端进程，直接调这个导出。效果等同于点了「立即使用」。
+做法：进入你自己的客户端进程，直接调这个导出。效果等同于点了「立即使用」，但不截图、不点击、不抢焦点、客户端最小化也能用。
+
+菜单里选 **6**，或者：
+
+```powershell
+百度网盘加速券.exe --ticket
+python bd_gui.py --ticket
+```
+
+只想用券、不刷券的话，也可以单独跑 `bd_use.py`：
 
 ```diff
 + python bd_use.py
@@ -135,11 +144,13 @@ python bd_speedup.py --all
 | 下载速度 | 1.72 MB/s | **25.26 MB/s** |
 | 「用券提速」按钮 | 显示 | 消失（加速中） |
 
-对比另一版靠截图找按钮、模拟鼠标点击的实现：那版 58.9 MB，必须在下载页、窗口不能被遮挡；这版 11 KB，不截图、不点击、不抢焦点，客户端最小化也能用。
+对比另一版靠截图找按钮、模拟鼠标点击的实现：那版 58.9 MB，必须在下载页、窗口不能被遮挡，且依赖固定分辨率。这一版不碰界面，与窗口尺寸、DPI、遮挡状态都无关。
 
-**为什么不打包成 exe**
+**关于打包和杀软**
 
-试过了。PyInstaller 产物必被 Windows Defender 判毒（`contains a virus`），因为它调了 `CreateRemoteThread` + `WriteProcessMemory`，特征和注入木马一致。纯 `.py` 不触发扫描（CPython 不接 AMSI），所以分发请直接发脚本，别打包。
+单看纯注入的那版（不到 200 行、通篇只有注入逻辑），PyInstaller 产物必被 Defender 判毒（`contains a virus`），因为它调了 `CreateRemoteThread` + `WriteProcessMemory`，特征和注入木马完全一致。
+
+但集成进 `bd_gui.py` 之后反而能正常打包 —— 注入只占四百多行里的一小段，静态特征被稀释，exe 顺利产出并跑通。所以桌面那个 exe 是**带选项 6** 的。
 
 脚本里写死了目标白名单：目标进程的可执行文件必须严格位于 `%APPDATA%\baidu\BaiduNetdisk\module\BrowserEngine\BaiduNetdiskUnite.exe`，只调用 `browserengine.dll` 的三个导出，不读账号密码、不发网络请求。换成任何别的进程一律拒绝执行。
 
@@ -241,9 +252,9 @@ Windows 的 DPAPI 部分要换：macOS 走 Keychain，Linux 走 libsecret。核�
 ## 目录
 
 ```
-bd_gui.py                                打包用源码（带交互菜单，exe 由它编译）
+bd_gui.py                                交互菜单版（选项 1-5 刷券 + 选项 6 用券），exe 由它编译
 bd_speedup.py                            命令行版刷券（无菜单，参数驱动）
-bd_use.py                                用券版：后台静默调 native，不截图不点击
+bd_use.py                                只做用券的独立脚本（不含刷券逻辑）
 AGENT-PROMPT.md                          给 agent 的提示词（基础篇），复制粘贴即可一键执行
 AGENT-PROMPT-DEEP.md                     进阶篇：参数置空探测 / 场景枚举 / 失败判读
 docs/desktop-webview-api-reversing.md    完整方法论（五阶段，含判断依据和陷阱）
