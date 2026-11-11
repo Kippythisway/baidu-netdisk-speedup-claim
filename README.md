@@ -6,7 +6,7 @@
 
 ## ⬇️ 下载 exe（免装 Python）
 
-**[百度网盘加速券.exe](https://github.com/Kippythisway/baidu-netdisk-speedup-claim/releases/latest)** · 11.9 MB · 单文件
+**[BaiduNetdisk-Speedup.exe](https://github.com/Kippythisway/baidu-netdisk-speedup-claim/releases/latest)** · 11.9 MB · 单文件（下载后随便改名）
 
 双击出菜单：
 
