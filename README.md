@@ -4,6 +4,40 @@
 
 ---
 
+## ⬇️ 下载 exe（免装 Python）
+
+**[百度网盘加速券.exe](https://github.com/Kippythisway/baidu-netdisk-speedup-claim/releases/latest)** · 11.6 MB · 单文件
+
+双击出菜单：
+
+```
+========================================================
+  百度网盘 激励领取
+========================================================
+  1) 全部领取（任务 + 场景 + 抽奖）
+  2) 只看今天还剩多少
+  3) 只刷任务表
+  4) 只刷广告场景
+  5) 只抽奖
+  0) 退出
+========================================================
+```
+
+命令行模式（适合计划任务）：
+
+```powershell
+百度网盘加速券.exe --status     # 只看剩余
+百度网盘加速券.exe --lottery    # 只抽奖
+百度网盘加速券.exe all          # 全跑
+```
+
+> 首次运行可能被 Defender 标 `Wacatac`，PyInstaller 打包的通病，加白即可。
+> 有疑虑就直接跑源码：`python bd_gui.py`
+
+---
+
+---
+
 ## 🤖 交给 agent，一句话跑完
 
 **不想自己动手？把 [`AGENT-PROMPT.md`](AGENT-PROMPT.md) 里 `=====` 之间的内容整块复制给任意 agent（Claude / GPT / 本地模型 / CLI agent），改三个占位符，它就自己跑完五个阶段并输出报告。**
@@ -170,7 +204,8 @@ Windows 的 DPAPI 部分要换：macOS 走 Keychain，Linux 走 libsecret。核�
 ## 目录
 
 ```
-bd_speedup.py                            一键领取脚本
+bd_gui.py                                打包用源码（带交互菜单，exe 由它编译）
+bd_speedup.py                            命令行版（无菜单，参数驱动）
 AGENT-PROMPT.md                          给 agent 的提示词（基础篇），复制粘贴即可一键执行
 AGENT-PROMPT-DEEP.md                     进阶篇：参数置空探测 / 场景枚举 / 失败判读
 docs/desktop-webview-api-reversing.md    完整方法论（五阶段，含判断依据和陷阱）
