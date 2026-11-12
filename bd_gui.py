@@ -18,7 +18,8 @@
     bd_gui.py --tasks         只刷任务
     bd_gui.py --adv           只刷场景
     bd_gui.py --lottery       只抽奖
-    bd_gui.py --ticket        只用一个加速券
+    bd_gui.py --ticket        用光所有加速券（连用，时长叠加）
+    bd_gui.py --ticket-one    只用一个券
     bd_gui.py --no-pause      跑完不暂停（脚本调用用）
 """
 import base64, ctypes, ctypes.wintypes as wt
@@ -344,7 +345,15 @@ class TicketClient:
         if not self.blk:
             raise RuntimeError("VirtualAllocEx 失败")
         self._wp(self.blk + 0x300, _TICKET_STUB)
-        self._wp(self.blk + 0x200, b"\xC3")    # 回调桩：直接 ret
+        # 回调桩：把 rcx/rdx/r8 三个参数存到 0x500，供 Python 读
+        # 签名 void(int64 a, int32 err, int32 sec)
+        self.cb_slot = self.blk + 0x500
+        cb  = b"\x49\xBB" + struct.pack("<Q", self.cb_slot)   # mov r11, imm64
+        cb += b"\x49\x89\x0B"      # mov [r11],    rcx
+        cb += b"\x49\x89\x53\x08"  # mov [r11+8],  rdx
+        cb += b"\x4D\x89\x43\x10"  # mov [r11+16], r8
+        cb += b"\xC3"              # ret
+        self._wp(self.blk + 0x200, cb)
         self._wp(self.blk + 0x220, b"\x00")    # 空字符串
 
     def _find_pid(self):
@@ -403,6 +412,7 @@ class TicketClient:
         fn = self.base + rva
         out_slot = self.blk + 0x100
         self._wp(out_slot, b"\x00" * 8)
+        self._wp(self.cb_slot, b"\x00" * 24)
 
         resolved = []
         for a in args:
@@ -434,18 +444,65 @@ class TicketClient:
         out = struct.unpack("<q", raw)[0] if len(raw) == 8 else None
         return code.value, out
 
+    def read_cb(self):
+        """读回调三元组 (a, err, sec)。
+
+        err = 0 成功；39600 表示没有可用券
+        sec = 剩余的加速秒数
+        回调是异步的，调用方需要稍等再读。
+        """
+        raw = self._rd(self.cb_slot, 24)
+        if len(raw) < 24:
+            return None
+        return (struct.unpack("<q", raw[0:8])[0],
+                struct.unpack("<i", raw[8:12])[0],
+                struct.unpack("<i", raw[16:20])[0])
+
     def query(self):
         return self.call("browser_engine_query_ticket_speedup", ["OUT", 10, "CB"])
 
     def consume(self):
         return self.call("browser_engine_consume_ticket_speedup", ["OUT", 10, "E", "CB"])
 
+    def consume_all(self, max_n=200, lead=4):
+        """串行用券直到用光。
+
+        每张券只有 30 秒，且不能叠加，所以只能一张烧完再续下一张。
+        返回 (实际用掉张数, 最后一次剩余秒数, 停止原因)。
+        """
+        n = 0
+        last_sec = None
+        while n < max_n:
+            self.consume()
+            time.sleep(1.2)
+            cb = self.read_cb()
+            if cb is None:
+                return n, last_sec, "读取回调失败"
+            _, err, sec = cb
+            if err == 39600:
+                return n, last_sec, "没有可用券"
+            if err != 0:
+                return n, last_sec, "错误码 %d" % err
+            if sec <= 0:
+                return n, last_sec, "剩余时长为 0"
+            n += 1
+            last_sec = sec
+            # 等这张券快烧完（留 lead 秒余量）再续下一张
+            wait = max(1, sec - lead)
+            if n < max_n and wait:
+                time.sleep(wait)
+        return n, last_sec, "达到上限"
+
     def close(self):
         self.k32.CloseHandle(self.h)
 
 
-def run_ticket():
+def run_ticket(all_tickets=True):
     say("\n=== 用券提速 ===", C)
+    if all_tickets:
+        say("  串行续券：一张烧完自动接下一张，直到没券")
+    else:
+        say("  只用一个券")
     say("  进入客户端进程调 native —— 不截图、不点击、不抢焦点")
     try:
         cli = TicketClient()
@@ -454,18 +511,26 @@ def run_ticket():
         return
     try:
         say(f"[*] 已连接客户端  pid={cli.pid}", G)
-        ret, _ = cli.query()
-        say(f"[*] 查券 ret={ret}")
-        say("[*] 正在用券 ...")
-        ret, out = cli.consume()
-        if ret != 0:
-            say(f"[x] 用券失败 ret={ret}", Y)
-            say("    常见原因：没有可用加速券 / 当前没有正在下载的任务")
+        if not all_tickets:
+            ret, out = cli.consume()
+            if ret != 0:
+                say(f"[x] 用券失败 ret={ret}", Y)
+                say("    常见原因：没有可用加速券 / 当前没有正在下载的任务")
+                return
+            say(f"[+] 用券成功  累计={out}", G)
             return
-        say(f"[+] 用券成功  状态={out}", G)
-        time.sleep(3)
-        cli.query()
-        say("[+] 完成。切到客户端「传输」页可以看到速度变化。", G)
+
+        say("[*] 开始串行用券（每张 30 秒，一张烧完自动续下一张）...")
+        t0 = time.time()
+        n, last_sec, why = cli.consume_all()
+        elapsed = time.time() - t0
+        if n == 0:
+            say(f"[x] 一张也没用上：{why}", Y)
+            say("    没有可用加速券，或者当前没有正在下载的任务。", Y)
+            return
+        say(f"[+] 共用掉 {n} 张  最后剩余 {last_sec} 秒  耗时 {elapsed/60:.1f} 分钟", G)
+        say(f"    停止原因：{why}", G)
+        say("[+] 完成。加速时长已全部花在下载上。", G)
     finally:
         cli.close()
 
@@ -490,7 +555,7 @@ def menu():
     say("  3) 只刷任务表")
     say("  4) 只刷广告场景")
     say("  5) 只抽奖")
-    say("  6) 用券提速（后台，不点鼠标）")
+    say("  6) 用券提速（自动用光所有券）")
     say("  0) 退出")
     say("=" * 56, C)
     return input("  请选择 [1]: ").strip() or "1"
@@ -512,9 +577,9 @@ def main():
                 return
         else:
             choice = None
-            if "--ticket" in args:
-                run_ticket()
-                if len(args) == 1:
+            if {"--ticket", "--ticket-all", "--ticket-one"} & args:
+                run_ticket(all_tickets="--ticket-one" not in args)
+                if not (args - {"--ticket", "--ticket-all", "--ticket-one"}):
                     return
 
         cookie, uk, before = bootstrap()
